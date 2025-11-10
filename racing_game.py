@@ -198,19 +198,31 @@ def apply_collision_bounds(kart: Kart) -> None:
     pos = pygame.Vector2(kart.x, kart.y)
     offset = pos - center
     if offset.length_squared() > 0:
-        distance = offset.length()
-        outer_limit = outer_rect.width / 2
-        inner_limit = inner_rect.width / 2
-        if distance > outer_limit:
-            offset.scale_to_length(outer_limit)
-            new_pos = center + offset
+        outer_rx = outer_rect.width / 2
+        outer_ry = outer_rect.height / 2
+        inner_rx = inner_rect.width / 2
+        inner_ry = inner_rect.height / 2
+
+        outer_val = (offset.x ** 2) / (outer_rx ** 2) + (offset.y ** 2) / (outer_ry ** 2)
+        if outer_val > 1.0:
+            scale = 1.0 / math.sqrt(outer_val)
+            new_offset = offset * scale
+            new_pos = center + new_offset
             kart.x, kart.y = new_pos
             kart.speed *= 0.4
-        if distance < inner_limit:
-            offset.scale_to_length(inner_limit)
-            new_pos = center + offset
+            offset = new_offset
+
+        inner_val = (offset.x ** 2) / (inner_rx ** 2) + (offset.y ** 2) / (inner_ry ** 2)
+        if inner_val < 1.0:
+            scale = 1.0 / math.sqrt(inner_val) if inner_val > 0 else 0.0
+            if scale > 0:
+                new_offset = offset * scale
+            else:
+                new_offset = pygame.Vector2(inner_rx, 0)
+            new_pos = center + new_offset
             kart.x, kart.y = new_pos
             kart.speed *= 0.5
+            offset = new_offset
 
 
 def handle_powerups(karts: List[Kart], powerups: List[PowerUp]) -> None:
