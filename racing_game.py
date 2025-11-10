@@ -196,33 +196,44 @@ def apply_collision_bounds(kart: Kart) -> None:
     inner_rect = outer_rect.inflate(-TRACK_WIDTH, -TRACK_WIDTH)
     center = pygame.Vector2(WIDTH / 2, HEIGHT / 2)
     pos = pygame.Vector2(kart.x, kart.y)
+
+    def project_to_ellipse(vector: pygame.Vector2, radius_x: float, radius_y: float) -> pygame.Vector2:
+        denom = (vector.x ** 2) / (radius_x ** 2) + (vector.y ** 2) / (radius_y ** 2)
+        if denom == 0:
+            return pygame.Vector2(radius_x, 0)
+        scale = 1.0 / math.sqrt(denom)
+        return vector * scale
+
+    outer_rx = outer_rect.width / 2
+    outer_ry = outer_rect.height / 2
+    inner_rx = inner_rect.width / 2
+    inner_ry = inner_rect.height / 2
+
     offset = pos - center
-    if offset.length_squared() > 0:
-        outer_rx = outer_rect.width / 2
-        outer_ry = outer_rect.height / 2
-        inner_rx = inner_rect.width / 2
-        inner_ry = inner_rect.height / 2
+    if offset.length_squared() == 0:
+        facing = pygame.Vector2(math.cos(math.radians(kart.rotation)), math.sin(math.radians(kart.rotation)))
+        if facing.length_squared() == 0:
+            facing = pygame.Vector2(1, 0)
+        offset = project_to_ellipse(facing, inner_rx + (outer_rx - inner_rx) / 2, inner_ry + (outer_ry - inner_ry) / 2)
+        pos = center + offset
+        kart.x, kart.y = pos
+        kart.speed *= 0.5
 
-        outer_val = (offset.x ** 2) / (outer_rx ** 2) + (offset.y ** 2) / (outer_ry ** 2)
-        if outer_val > 1.0:
-            scale = 1.0 / math.sqrt(outer_val)
-            new_offset = offset * scale
-            new_pos = center + new_offset
-            kart.x, kart.y = new_pos
-            kart.speed *= 0.4
-            offset = new_offset
+    outer_val = (offset.x ** 2) / (outer_rx ** 2) + (offset.y ** 2) / (outer_ry ** 2)
+    if outer_val > 1.0:
+        new_offset = project_to_ellipse(offset, outer_rx, outer_ry)
+        new_pos = center + new_offset
+        kart.x, kart.y = new_pos
+        kart.speed *= 0.4
+        offset = new_offset
 
-        inner_val = (offset.x ** 2) / (inner_rx ** 2) + (offset.y ** 2) / (inner_ry ** 2)
-        if inner_val < 1.0:
-            scale = 1.0 / math.sqrt(inner_val) if inner_val > 0 else 0.0
-            if scale > 0:
-                new_offset = offset * scale
-            else:
-                new_offset = pygame.Vector2(inner_rx, 0)
-            new_pos = center + new_offset
-            kart.x, kart.y = new_pos
-            kart.speed *= 0.5
-            offset = new_offset
+    inner_val = (offset.x ** 2) / (inner_rx ** 2) + (offset.y ** 2) / (inner_ry ** 2)
+    if inner_val < 1.0:
+        new_offset = project_to_ellipse(offset, inner_rx, inner_ry)
+        new_pos = center + new_offset
+        kart.x, kart.y = new_pos
+        kart.speed *= 0.5
+        offset = new_offset
 
 
 def handle_powerups(karts: List[Kart], powerups: List[PowerUp]) -> None:
